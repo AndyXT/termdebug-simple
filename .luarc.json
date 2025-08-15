@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json.schemastore.org/luarc",
+  "runtime.version": "LuaJIT",
+  "runtime.path": [
+    "lua/?.lua",
+    "lua/?/init.lua"
+  ],
+  "globals": [
+    "vim"
+  ],
+  "diagnostics": {
+    "disable": ["undefined-global"]
+  }
+}

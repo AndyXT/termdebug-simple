@@ -1,4 +1,9 @@
 ---@class TermdebugSimpleCommands
+---@field step_into function
+---@field step_over function
+---@field step_out function
+---@field continue function
+---@field stop function
 local M = {}
 
 ---@type TermdebugSimpleConfig|nil
