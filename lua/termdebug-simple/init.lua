@@ -1,7 +1,11 @@
+---@class TermdebugSimple
+---@field config TermdebugSimpleConfig|nil Plugin configuration
 local M = {}
 
 M.config = nil
 
+---Initialize the termdebug-simple plugin
+---@param opts? TermdebugSimpleConfig User configuration options
 function M.setup(opts)
 	M.config = require("termdebug-simple.config").setup(opts)
 
@@ -22,4 +26,3 @@ function M.setup(opts)
 end
 
 return M
-

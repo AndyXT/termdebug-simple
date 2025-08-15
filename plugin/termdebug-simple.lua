@@ -7,4 +7,3 @@ if vim.g.loaded_termdebug_simple == 1 then
 	return
 end
 vim.g.loaded_termdebug_simple = 1
-

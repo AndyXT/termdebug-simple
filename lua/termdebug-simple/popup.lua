@@ -1,11 +1,16 @@
+---@class TermdebugSimplePopup
 local M = {}
 local api = vim.api
 
+---@class PopupState
+---@field buf integer|nil Buffer number
+---@field win integer|nil Window ID
 local current_popup = {
 	buf = nil,
 	win = nil,
 }
 
+---Close the current popup window
 local function close_popup()
 	if current_popup.win and api.nvim_win_is_valid(current_popup.win) then
 		api.nvim_win_close(current_popup.win, true)
@@ -17,6 +22,10 @@ local function close_popup()
 	current_popup.win = nil
 end
 
+---Show content in a popup window
+---@param content string|string[] Content to display (string or array of lines)
+---@param opts? table Optional configuration overrides
+---@return PopupState popup Current popup state
 function M.show(content, opts)
 	opts = opts or {}
 	local config = require("termdebug-simple.config").setup({})
@@ -34,15 +43,15 @@ function M.show(content, opts)
 	local height = math.min(#lines + 2, opts.height or config.popup.height)
 
 	for i, line in ipairs(lines) do
-		if #line > width - 2 then
+		if line and #line > width - 2 then
 			lines[i] = string.sub(line, 1, width - 5) .. "..."
 		end
 	end
 
 	current_popup.buf = api.nvim_create_buf(false, true)
 	api.nvim_buf_set_lines(current_popup.buf, 0, -1, false, lines)
-	api.nvim_buf_set_option(current_popup.buf, "modifiable", false)
-	api.nvim_buf_set_option(current_popup.buf, "buftype", "nofile")
+	vim.bo[current_popup.buf].modifiable = false
+	vim.bo[current_popup.buf].buftype = "nofile"
 
 	local win_opts = {
 		relative = config.popup.relative,
@@ -66,23 +75,19 @@ function M.show(content, opts)
 		api.nvim_set_current_win(current_popup.win)
 	end
 
-	api.nvim_buf_set_keymap(current_popup.buf, "n", "q", "", {
-		callback = close_popup,
-		noremap = true,
-		silent = true,
-		desc = "Close popup",
-	})
-
-	api.nvim_buf_set_keymap(current_popup.buf, "n", "<Esc>", "", {
-		callback = close_popup,
-		noremap = true,
-		silent = true,
-		desc = "Close popup",
-	})
+	local close_keys = { "q", "<Esc>" }
+	for _, key in ipairs(close_keys) do
+		api.nvim_buf_set_keymap(current_popup.buf, "n", key, "", {
+			callback = close_popup,
+			noremap = true,
+			silent = true,
+			desc = "Close popup",
+		})
+	end
 
 	if config.popup.scrollable then
-		api.nvim_win_set_option(current_popup.win, "wrap", false)
-		api.nvim_win_set_option(current_popup.win, "scrolloff", 0)
+		vim.wo[current_popup.win].wrap = false
+		vim.wo[current_popup.win].scrolloff = 0
 	end
 
 	vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "BufLeave" }, {
@@ -98,9 +103,9 @@ function M.show(content, opts)
 	return current_popup
 end
 
+---Close the current popup window
 function M.close()
 	close_popup()
 end
 
 return M
-

@@ -1,6 +1,11 @@
+---@class TermdebugSimpleKeymaps
 local M = {}
+
+---@type table|nil
 local commands = nil
 
+---Setup keymaps for debugging
+---@param config TermdebugSimpleConfig Plugin configuration
 function M.setup(config)
 	commands = require("termdebug-simple.commands")
 
@@ -30,4 +35,3 @@ function M.setup(config)
 end
 
 return M
-
