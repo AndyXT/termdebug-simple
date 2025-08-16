@@ -22,13 +22,80 @@ local function close_popup()
 	current_popup.win = nil
 end
 
+---Calculate smart popup position to avoid screen edges
+---@param width integer Popup width
+---@param height integer Popup height
+---@param relative string Position relative to ("cursor", "win", "editor")
+---@param row_offset integer Base row offset
+---@param col_offset integer Base column offset
+---@return table win_opts Window options with smart positioning
+local function calculate_popup_position(width, height, relative, row_offset, col_offset)
+	local screen_width = vim.o.columns
+	local screen_height = vim.o.lines
+	
+	local row = row_offset
+	local col = col_offset
+	
+	if relative == "cursor" then
+		local cursor_pos = api.nvim_win_get_cursor(0)
+		local cursor_row = cursor_pos[1] - 1 -- Convert to 0-based
+		local cursor_col = cursor_pos[2]
+		
+		-- Adjust position if popup would go off screen
+		-- Check right edge
+		if cursor_col + col + width > screen_width then
+			col = screen_width - cursor_col - width - 2
+		end
+		
+		-- Check bottom edge
+		if cursor_row + row + height > screen_height - 2 then
+			-- Position above cursor instead
+			row = -height - 1
+		end
+		
+		-- Ensure minimum boundaries
+		col = math.max(col, -cursor_col + 1)
+		row = math.max(row, -cursor_row + 1)
+		
+	elseif relative == "win" then
+		local win_width = api.nvim_win_get_width(0)
+		local win_height = api.nvim_win_get_height(0)
+		
+		-- Check boundaries within current window
+		if col + width > win_width then
+			col = win_width - width - 1
+		end
+		
+		if row + height > win_height then
+			row = win_height - height - 1
+		end
+		
+		-- Ensure minimum boundaries
+		col = math.max(col, 0)
+		row = math.max(row, 0)
+	end
+	
+	return {
+		relative = relative,
+		width = width,
+		height = height,
+		row = row,
+		col = col,
+		style = "minimal",
+	}
+end
+
 ---Show content in a popup window
 ---@param content string|string[] Content to display (string or array of lines)
 ---@param opts? table Optional configuration overrides
 ---@return PopupState popup Current popup state
 function M.show(content, opts)
 	opts = opts or {}
-	local config = require("termdebug-simple.config").setup({})
+	local config = require("termdebug-simple").config
+	if not config then
+		vim.notify("termdebug-simple not initialized", vim.log.levels.ERROR)
+		return { buf = nil, win = nil }
+	end
 
 	close_popup()
 
@@ -53,16 +120,17 @@ function M.show(content, opts)
 	vim.bo[current_popup.buf].modifiable = false
 	vim.bo[current_popup.buf].buftype = "nofile"
 
-	local win_opts = {
-		relative = config.popup.relative,
-		width = width,
-		height = height,
-		row = config.popup.row_offset,
-		col = config.popup.col_offset,
-		style = "minimal",
-		border = config.popup.border,
-		focusable = config.popup.focusable,
-	}
+	local win_opts = calculate_popup_position(
+		width,
+		height,
+		config.popup.relative,
+		config.popup.row_offset,
+		config.popup.col_offset
+	)
+	
+	-- Add additional window options
+	win_opts.border = config.popup.border
+	win_opts.focusable = config.popup.focusable
 
 	if opts.title then
 		win_opts.title = opts.title
@@ -90,8 +158,11 @@ function M.show(content, opts)
 		vim.wo[current_popup.win].scrolloff = 0
 	end
 
+	-- Store the source buffer (where popup was triggered from)
+	local source_buf = vim.api.nvim_get_current_buf()
+	
 	vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "BufLeave" }, {
-		buffer = vim.api.nvim_get_current_buf(),
+		buffer = source_buf,
 		once = true,
 		callback = function()
 			if not opts.persistent then

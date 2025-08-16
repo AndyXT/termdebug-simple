@@ -1,21 +1,39 @@
 ---@class TermdebugSimpleParser
 local M = {}
 
----Find the GDB buffer by name or filetype
+---Find the GDB buffer using termdebug's official tracking
 ---@return integer|nil bufnr Buffer number of GDB buffer, or nil if not found
 local function find_gdb_buffer()
-	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-		local name = vim.api.nvim_buf_get_name(buf)
-		if name:match("gdb") or name:match("debugger") then
+	-- First try termdebug's official buffer tracking
+	if vim.g.termdebug_gdb_bufnr and vim.api.nvim_buf_is_valid(vim.g.termdebug_gdb_bufnr) then
+		return vim.g.termdebug_gdb_bufnr
+	end
+	
+	-- Check for gdb window buffer (termdebug creates specific windows)
+	if vim.g.termdebug_gdb_window and vim.api.nvim_win_is_valid(vim.g.termdebug_gdb_window) then
+		local buf = vim.api.nvim_win_get_buf(vim.g.termdebug_gdb_window)
+		if vim.api.nvim_buf_is_valid(buf) then
 			return buf
 		end
 	end
-
-	for _, win in ipairs(vim.api.nvim_list_wins()) do
-		local buf = vim.api.nvim_win_get_buf(win)
-		local ft = vim.bo[buf].filetype
-		if ft == "gdb" or ft == "termdebug" then
-			return buf
+	
+	-- Fallback: look for buffers with specific filetype first (more reliable)
+	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+		if vim.api.nvim_buf_is_valid(buf) then
+			local ft = vim.bo[buf].filetype
+			if ft == "gdb" then
+				return buf
+			end
+		end
+	end
+	
+	-- Last resort: check for termdebug buffer variables
+	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+		if vim.api.nvim_buf_is_valid(buf) then
+			local buf_vars = vim.b[buf]
+			if buf_vars and (buf_vars.term_title and buf_vars.term_title:match("[Gg][Dd][Bb]")) then
+				return buf
+			end
 		end
 	end
 
